@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { semanticSearch, isAISearchEnabled } from "@/lib/ai/embeddings";
+import { semanticSearch, semanticSearchByVector, isAISearchEnabled } from "@/lib/ai/embeddings";
+import { decodeSearchVector } from "@/lib/ai/search-vector";
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,7 +23,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const results = await semanticSearch(query, limit);
+    // Free AI search: a browser-made fingerprint can be passed as v=
+    const vector = decodeSearchVector(searchParams.get("v"));
+    const results = vector
+      ? await semanticSearchByVector(vector, limit)
+      : await semanticSearch(query, limit);
 
     return NextResponse.json({
       results,

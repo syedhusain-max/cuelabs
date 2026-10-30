@@ -1,8 +1,9 @@
 // Creates search "fingerprints" (embeddings) for every public prompt that lacks one,
-// using the free built-in model. Run by scripts/vercel-build.sh when EMBED_ON_BUILD=true.
+// using the free open-source search model. Run by scripts/vercel-build.sh when EMBED_ON_BUILD=true.
 // Set EMBED_REGENERATE=true to redo all of them (e.g. after changing the model).
 import { Prisma, PrismaClient } from "@prisma/client";
-import { generateLocalEmbeddings, LOCAL_EMBEDDING_MODEL } from "../src/lib/ai/local-embeddings";
+import { generateLocalEmbeddings, LOCAL_EMBEDDING_MODEL } from "./local-embeddings";
+import { promptTextForEmbedding } from "../src/lib/ai/search-vector";
 
 const prisma = new PrismaClient();
 const BATCH_SIZE = 32;
@@ -30,8 +31,7 @@ async function main() {
 
   for (let i = 0; i < prompts.length; i += BATCH_SIZE) {
     const batch = prompts.slice(i, i + BATCH_SIZE);
-    // Same text layout as generatePromptEmbedding in src/lib/ai/embeddings.ts
-    const texts = batch.map((p) => [p.title, p.description || "", p.content].join("\n\n").trim());
+    const texts = batch.map(promptTextForEmbedding);
     try {
       const vectors = await generateLocalEmbeddings(texts);
       await prisma.$transaction(

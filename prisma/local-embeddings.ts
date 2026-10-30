@@ -1,17 +1,16 @@
 /**
- * Free, open-source embeddings that run inside the app (no API key, no per-use cost).
+ * Build-time embeddings for AI search (used only by prisma/embed-all.ts).
  *
- * Uses a small multilingual sentence model through Transformers.js. The model
- * files are downloaded from Hugging Face the first time they are needed and
- * cached in /tmp (the only writable folder on Vercel), so the first search on a
- * fresh server takes a few seconds; later searches are fast.
- *
- * Kept free of "@/..." imports so build scripts can use it directly.
+ * Runs the same free, open-source model the visitor's browser uses for searches
+ * (see src/lib/ai/search-vector.ts), so prompt and search fingerprints match.
+ * Deliberately outside src/ so the model never ends up in the site's server
+ * functions (Vercel's free plan limits their number and size).
  */
 import type { FeatureExtractionPipeline } from "@huggingface/transformers";
 
-export const LOCAL_EMBEDDING_MODEL =
-  process.env.LOCAL_EMBEDDING_MODEL || "Xenova/paraphrase-multilingual-MiniLM-L12-v2";
+import { SEARCH_EMBEDDING_MODEL } from "../src/lib/ai/search-vector";
+
+export const LOCAL_EMBEDDING_MODEL = SEARCH_EMBEDDING_MODEL;
 
 let extractorPromise: Promise<FeatureExtractionPipeline> | null = null;
 
@@ -19,7 +18,7 @@ async function getExtractor(): Promise<FeatureExtractionPipeline> {
   if (!extractorPromise) {
     extractorPromise = (async () => {
       const { pipeline, env } = await import("@huggingface/transformers");
-      env.cacheDir = process.env.LOCAL_EMBEDDING_CACHE_DIR || "/tmp/transformers-cache";
+      env.cacheDir = process.env.LOCAL_EMBEDDING_CACHE_DIR || ".cache/transformers";
       env.allowLocalModels = false;
       // Cast avoids a TypeScript "union type too complex" error from pipeline()'s overloads.
       const createPipeline = pipeline as unknown as (

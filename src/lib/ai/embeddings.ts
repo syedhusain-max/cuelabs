@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import { getConfig } from "@/lib/config";
 import { NON_BOT_PROMPTS } from "@/lib/prompt-list";
 import { loadPrompt, getSystemPrompt } from "./load-prompt";
-import { generateLocalEmbedding } from "./local-embeddings";
 
 const queryTranslatorPrompt = loadPrompt("src/lib/ai/query-translator.prompt.yml");
 
@@ -25,9 +24,10 @@ function getOpenAIClient(): OpenAI {
 }
 
 /**
- * With OPENAI_API_KEY set, embeddings come from OpenAI (or OPENAI_BASE_URL).
- * Without it, a free open-source model runs inside the app (see local-embeddings.ts).
- * Switching between the two requires regenerating all embeddings.
+ * With OPENAI_API_KEY set, embeddings come from OpenAI (or OPENAI_BASE_URL) on the server.
+ * Without it, AI search is free: the visitor's browser makes the search fingerprint
+ * (src/lib/ai/search-vector.ts) and prompt fingerprints are made during the build
+ * (prisma/embed-all.ts). Switching between the two requires regenerating all embeddings.
  */
 function isOpenAIEmbeddingsEnabled(): boolean {
   return !!process.env.OPENAI_API_KEY;
@@ -80,7 +80,7 @@ function containsNonEnglish(text: string): boolean {
 
 export async function generateEmbedding(text: string): Promise<number[]> {
   if (!isOpenAIEmbeddingsEnabled()) {
-    return generateLocalEmbedding(text);
+    throw new Error("Server-side embeddings need OPENAI_API_KEY; free AI search embeds in the browser instead");
   }
 
   const client = getOpenAIClient();
@@ -96,6 +96,8 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 export async function generatePromptEmbedding(promptId: string): Promise<void> {
   const config = await getConfig();
   if (!config.features.aiSearch) return;
+  // Free AI search: fingerprints are made during the build (EMBED_ON_BUILD), not here.
+  if (!isOpenAIEmbeddingsEnabled()) return;
 
   const prompt = await db.prompt.findUnique({
     where: { id: promptId },
@@ -135,6 +137,9 @@ export async function generateAllEmbeddings(
   if (!config.features.aiSearch) {
     throw new Error("AI Search is not enabled");
   }
+  if (!isOpenAIEmbeddingsEnabled()) {
+    throw new Error("Free AI search creates embeddings during the build. Set EMBED_ON_BUILD=true in Vercel and redeploy.");
+  }
 
   const prompts = await db.prompt.findMany({
     where: { 
@@ -163,9 +168,8 @@ export async function generateAllEmbeddings(
       onProgress(i + 1, total, success, failed);
     }
     
-    // Rate limit: wait 1000ms between requests to avoid hitting API limits.
-    // The built-in model has no rate limit.
-    if (isOpenAIEmbeddingsEnabled() && i < prompts.length - 1) {
+    // Rate limit: wait 1000ms between requests to avoid hitting API limits
+    if (i < prompts.length - 1) {
       await delay(1000);
     }
   }
@@ -221,6 +225,10 @@ export interface SemanticSearchResult {
   createdAt: Date;
 }
 
+/**
+ * Search by text. Needs OPENAI_API_KEY; without it this returns no results
+ * (free AI search sends a browser-made vector to semanticSearchByVector instead).
+ */
 export async function semanticSearch(
   query: string,
   limit: number = 20
@@ -229,17 +237,36 @@ export async function semanticSearch(
   if (!config.features.aiSearch) {
     throw new Error("AI Search is not enabled");
   }
+  if (!isOpenAIEmbeddingsEnabled()) return [];
 
-  // Translate non-English queries to English for better semantic matching.
-  // The built-in model is multilingual, so it needs no translation step.
+  // Translate non-English queries to English for better semantic matching
   let searchQuery = query;
-  if (isOpenAIEmbeddingsEnabled() && containsNonEnglish(query)) {
+  if (containsNonEnglish(query)) {
     searchQuery = await translateQueryToEnglish(query);
   }
 
   // Generate embedding for the query
   const queryEmbedding = await generateEmbedding(searchQuery);
+  return searchByEmbedding(queryEmbedding, limit, 0.4);
+}
 
+/** Search with a fingerprint the visitor's browser made (free AI search). */
+export async function semanticSearchByVector(
+  queryEmbedding: number[],
+  limit: number = 20
+): Promise<SemanticSearchResult[]> {
+  const config = await getConfig();
+  if (!config.features.aiSearch) {
+    throw new Error("AI Search is not enabled");
+  }
+  return searchByEmbedding(queryEmbedding, limit, Number(process.env.LOCAL_SEARCH_THRESHOLD || 0.3));
+}
+
+async function searchByEmbedding(
+  queryEmbedding: number[],
+  limit: number,
+  SIMILARITY_THRESHOLD: number
+): Promise<SemanticSearchResult[]> {
   // Fetch all public prompts with embeddings (excluding soft-deleted)
   const prompts = await db.prompt.findMany({
     where: {
@@ -287,15 +314,13 @@ export async function semanticSearch(
   });
 
   // Calculate similarity scores and filter by threshold
-  // Filter out results below this similarity (the built-in model scores lower overall)
-  const SIMILARITY_THRESHOLD = isOpenAIEmbeddingsEnabled()
-    ? 0.4
-    : Number(process.env.LOCAL_SEARCH_THRESHOLD || 0.3);
   
   const scoredPrompts = prompts
     .map((prompt) => {
       const embedding = prompt.embedding as number[];
-      const similarity = cosineSimilarity(queryEmbedding, embedding);
+      // Skip fingerprints from a different model (different length)
+      const similarity =
+        embedding.length === queryEmbedding.length ? cosineSimilarity(queryEmbedding, embedding) : 0;
       return {
         ...prompt,
         similarity,
@@ -312,7 +337,7 @@ export async function semanticSearch(
 
 export async function isAISearchEnabled(): Promise<boolean> {
   const config = await getConfig();
-  // The built-in model needs no API key.
+  // Free AI search needs no API key (the browser makes the search fingerprint).
   return config.features.aiSearch === true;
 }
 

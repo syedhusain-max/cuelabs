@@ -25,23 +25,6 @@ const nextConfig: NextConfig = {
   },
   // Enable standalone output for Docker
   output: "standalone",
-  // The built-in AI search model runs on native code; load it from node_modules
-  // instead of bundling it.
-  serverExternalPackages: ["@huggingface/transformers", "onnxruntime-node"],
-  // Leave out model-runtime files the Linux CPU servers never use, to stay under
-  // Vercel's function size limit (GPU drivers, other operating systems, browser builds).
-  outputFileTracingExcludes: {
-    "*": [
-      "node_modules/onnxruntime-node/bin/napi-v3/darwin/**",
-      "node_modules/onnxruntime-node/bin/napi-v3/win32/**",
-      "node_modules/onnxruntime-node/bin/napi-v3/linux/arm64/**",
-      "node_modules/onnxruntime-node/bin/napi-v3/linux/x64/libonnxruntime_providers_cuda.so",
-      "node_modules/onnxruntime-node/bin/napi-v3/linux/x64/libonnxruntime_providers_tensorrt.so",
-      "node_modules/onnxruntime-web/**",
-      "node_modules/@huggingface/transformers/dist/*.wasm",
-      "node_modules/@huggingface/transformers/dist/*.map",
-    ],
-  },
   // Experimental features
   experimental: {
     // Enable server actions

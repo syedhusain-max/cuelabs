@@ -21,6 +21,7 @@ import Image from "next/image";
 import DeepWikiIcon from "@/../public/deepwiki.svg";
 import config from "@/../prompts.config";
 import { analyticsSearch } from "@/lib/analytics";
+import { embedSearchQuery, preloadSearchModel } from "@/lib/ai/browser-search";
 
 /** The first select of the sidebar: prompt type on /prompts, platform on /bots */
 export interface PrimaryFilter {
@@ -86,8 +87,12 @@ export function PromptFilters({ categories, tags, currentFilters, aiSearchEnable
     return tags.filter((tag) => tag.name.toLowerCase().includes(search));
   }, [tags, tagSearch]);
 
-  const updateFilter = (key: string, value: string | null) => {
+  // Counts filter updates so a slow AI search fingerprint can't overwrite a newer search
+  const updateIdRef = useRef(0);
+
+  const updateFilter = async (key: string, value: string | null) => {
     setFilterPending(true);
+    const updateId = ++updateIdRef.current;
     const params = new URLSearchParams(searchParams?.toString() || "");
     if (value) {
       params.set(key, value);
@@ -95,6 +100,18 @@ export function PromptFilters({ categories, tags, currentFilters, aiSearchEnable
       params.delete(key);
     }
     params.delete("page");
+
+    // Free AI search: the browser turns the search into a fingerprint (v=) for the server.
+    params.delete("v");
+    const query = params.get("q");
+    if (aiSearchEnabled && params.get("ai") === "1" && query) {
+      // Same keyword joining as the prompts page
+      const text = query.split(",").map((k) => k.trim()).filter(Boolean).join(" ");
+      const vector = await embedSearchQuery(text);
+      if (updateId !== updateIdRef.current) return; // a newer search started meanwhile
+      if (vector) params.set("v", vector);
+    }
+
     router.push(`${basePath}?${params.toString()}`);
   };
 
@@ -148,6 +165,7 @@ export function PromptFilters({ categories, tags, currentFilters, aiSearchEnable
                 checked={currentFilters.ai === "1"}
                 onCheckedChange={(checked) => {
                   analyticsSearch.aiSearchToggle(checked);
+                  if (checked) preloadSearchModel();
                   updateFilter("ai", checked ? "1" : null);
                 }}
               />
@@ -236,6 +254,7 @@ export function PromptFilters({ categories, tags, currentFilters, aiSearchEnable
               checked={currentFilters.ai === "1"}
               onCheckedChange={(checked) => {
                 analyticsSearch.aiSearchToggle(checked);
+                if (checked) preloadSearchModel();
                 updateFilter("ai", checked ? "1" : null);
               }}
             />

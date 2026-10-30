@@ -12,7 +12,8 @@ import { PinnedCategories } from "@/components/categories/pinned-categories";
 import { HFDataStudioDropdown } from "@/components/prompts/hf-data-studio-dropdown";
 import { McpServerPopup } from "@/components/mcp/mcp-server-popup";
 import { db } from "@/lib/db";
-import { isAISearchEnabled, semanticSearch } from "@/lib/ai/embeddings";
+import { isAISearchEnabled, semanticSearch, semanticSearchByVector } from "@/lib/ai/embeddings";
+import { decodeSearchVector } from "@/lib/ai/search-vector";
 import { isAIGenerationEnabled } from "@/lib/ai/generation";
 import { buildPageMetadata } from "@/lib/seo";
 import { promptListTypeWhere } from "@/lib/prompt-list";
@@ -168,6 +169,7 @@ interface PromptsPageProps {
     sort?: string;
     page?: string;
     ai?: string;
+    v?: string;
     trending?: string;
   }>;
 }
@@ -248,7 +250,11 @@ export default async function PromptsPage({ searchParams }: PromptsPageProps) {
     try {
       // Join comma-separated keywords with spaces for a single semantic search
       const searchQuery = params.q.split(",").map(k => k.trim()).filter(Boolean).join(" ");
-      const aiResults = await semanticSearch(searchQuery, perPage);
+      // Free AI search: the visitor's browser sends the search fingerprint as v=
+      const browserVector = decodeSearchVector(params.v);
+      const aiResults = browserVector
+        ? await semanticSearchByVector(browserVector, perPage)
+        : await semanticSearch(searchQuery, perPage);
       
       prompts = aiResults.map((p) => ({
         ...p,
