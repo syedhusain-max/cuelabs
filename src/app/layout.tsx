@@ -41,8 +41,8 @@ const playfairDisplay = Playfair_Display({
 export const metadata: Metadata = {
   metadataBase: new URL(getBaseUrl()),
   title: {
-    default: "prompts.chat - AI Prompts Community",
-    template: "%s | prompts.chat",
+    default: "CueLabs - Discover, save and share AI prompts",
+    template: "%s | CueLabs",
   },
   description:
     "Discover, collect, and share the best AI prompts for ChatGPT, Claude, Gemini, and more. Join the largest community of AI prompt engineers and creators.",
@@ -57,27 +57,22 @@ export const metadata: Metadata = {
     "AI assistant",
     "prompt templates",
   ],
-  authors: [{ name: "prompts.chat community" }],
-  creator: "prompts.chat",
-  publisher: "prompts.chat",
+  authors: [{ name: "CueLabs" }],
+  creator: "CueLabs",
+  publisher: "CueLabs",
   icons: {
-    icon: [
-      { url: "/favicon/favicon.svg", type: "image/svg+xml" },
-      { url: "/favicon/favicon-96x96.png", sizes: "96x96", type: "image/png" },
-      { url: "/favicon/favicon.ico", sizes: "48x48" },
-    ],
-    apple: "/favicon/apple-touch-icon.png",
-    shortcut: "/favicon/favicon.svg",
+    icon: [{ url: "/brand-logo.svg", type: "image/svg+xml" }],
+    shortcut: "/brand-logo.svg",
   },
   manifest: "/favicon/site.webmanifest",
   other: {
-    "apple-mobile-web-app-title": "prompts.chat",
+    "apple-mobile-web-app-title": "CueLabs",
   },
   openGraph: {
     type: "website",
     locale: "en_US",
-    siteName: "prompts.chat",
-    title: "prompts.chat - AI Prompts Community",
+    siteName: "CueLabs",
+    title: "CueLabs - Discover, save and share AI prompts",
     description:
       "Discover, collect, and share the best AI prompts for ChatGPT, Claude, Gemini, and more. Join the largest community of AI prompt engineers.",
     images: [
@@ -85,17 +80,16 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "prompts.chat - AI Prompts Community",
+        alt: "CueLabs - Discover, save and share AI prompts",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "prompts.chat - AI Prompts Community",
+    title: "CueLabs - Discover, save and share AI prompts",
     description:
       "Discover, collect, and share the best AI prompts for ChatGPT, Claude, Gemini, and more.",
     images: ["/og.png"],
-    creator: "@promptschat",
   },
   robots: {
     index: true,
