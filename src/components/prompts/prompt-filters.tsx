@@ -438,6 +438,7 @@ export function PromptFilters({ categories, tags, currentFilters, aiSearchEnable
               </Link>
             </>
           )}
+          {!config.homepage?.useCloneBranding && (
           <Link 
             href="https://github.com/f/prompts.chat" 
             target="_blank" 
@@ -451,6 +452,7 @@ export function PromptFilters({ categories, tags, currentFilters, aiSearchEnable
             GitHub
             <ExternalLink className="h-2.5 w-2.5 ml-auto opacity-50" />
           </Link>
+          )}
         </nav>
       </div>
       </div>
