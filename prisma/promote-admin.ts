@@ -1,16 +1,16 @@
 // Gives one GitHub user the ADMIN role, and removes the admin role from the
 // placeholder account the seed creates (admin@prompts.chat).
-// Run by scripts/vercel-build.sh when ADMIN_USERNAME is set.
+// Run by scripts/vercel-build.sh on every deploy.
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 async function main() {
   const username = process.env.ADMIN_USERNAME?.trim();
-  if (!username) return;
-
-  const user = await prisma.user.findUnique({ where: { username } });
-  if (!user) {
+  const user = username ? await prisma.user.findUnique({ where: { username } }) : null;
+  if (!username) {
+    // No admin requested; still make sure the placeholder below is not an admin.
+  } else if (!user) {
     console.warn(`⚠️  ADMIN_USERNAME "${username}" not found. Log in once with GitHub, then redeploy.`);
   } else if (user.role !== "ADMIN") {
     await prisma.user.update({ where: { id: user.id }, data: { role: "ADMIN" } });

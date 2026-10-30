@@ -3,16 +3,16 @@ import { coderabbitWidget } from "./coderabbit";
 import { bookWidget } from "./book";
 import { textreamWidget } from "./textream";
 import { commandcodeWidget } from "./commandcode";
+import appConfig from "@/../prompts.config";
 
 export * from "./types";
 
-// Registry of all widget plugins
-const widgetPlugins: WidgetPlugin[] = [
-  coderabbitWidget,
-  bookWidget,
-  textreamWidget,
-  commandcodeWidget,
-];
+// Registry of all widget plugins.
+// These are prompts.chat sponsor placements, so they are switched off
+// when the site uses its own branding (CueLabs).
+const widgetPlugins: WidgetPlugin[] = appConfig.homepage?.useCloneBranding
+  ? []
+  : [coderabbitWidget, bookWidget, textreamWidget, commandcodeWidget];
 
 /**
  * Get all registered widget plugins

@@ -15,9 +15,8 @@ npx prisma generate
 # created accounts with a shared known password.)
 npx tsx prisma/seed-cuelabs.ts
 
-# Give a GitHub user the admin role. Set ADMIN_USERNAME in Vercel.
-if [ -n "${ADMIN_USERNAME:-}" ]; then
-  npx tsx prisma/promote-admin.ts
-fi
+# Give a GitHub user the admin role (set ADMIN_USERNAME in Vercel), and
+# always remove admin rights from the placeholder admin@prompts.chat account.
+npx tsx prisma/promote-admin.ts
 
 npm run build
