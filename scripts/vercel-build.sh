@@ -7,14 +7,13 @@ set -euo pipefail
 export DIRECT_URL="${DIRECT_URL:-${DATABASE_URL_UNPOOLED:-$DATABASE_URL}}"
 
 npx prisma migrate deploy
+npx prisma generate
 
-# One-time data load. Turn on by setting SEED_ON_BUILD=true in Vercel,
-# redeploy once, then remove the variable. Safe to repeat: prompts that
-# already exist are skipped.
-if [ "${SEED_ON_BUILD:-}" = "true" ]; then
-  echo "SEED_ON_BUILD=true: loading the prompt library..."
-  npx tsx prisma/seed.ts
-fi
+# Load the free starter prompts (bundled prompts.csv) once.
+# Skips itself when the library already has prompts, and creates no logins.
+# (Replaces the earlier SEED_ON_BUILD switch, which used prisma/seed.ts and
+# created accounts with a shared known password.)
+npx tsx prisma/seed-cuelabs.ts
 
 # Give a GitHub user the admin role. Set ADMIN_USERNAME in Vercel.
 if [ -n "${ADMIN_USERNAME:-}" ]; then
