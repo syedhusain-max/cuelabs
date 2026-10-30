@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getConfig } from "@/lib/config";
 import { NON_BOT_PROMPTS } from "@/lib/prompt-list";
 import { loadPrompt, getSystemPrompt } from "./load-prompt";
+import { generateLocalEmbedding } from "./local-embeddings";
 
 const queryTranslatorPrompt = loadPrompt("src/lib/ai/query-translator.prompt.yml");
 
@@ -21,6 +22,15 @@ function getOpenAIClient(): OpenAI {
     });
   }
   return openai;
+}
+
+/**
+ * With OPENAI_API_KEY set, embeddings come from OpenAI (or OPENAI_BASE_URL).
+ * Without it, a free open-source model runs inside the app (see local-embeddings.ts).
+ * Switching between the two requires regenerating all embeddings.
+ */
+function isOpenAIEmbeddingsEnabled(): boolean {
+  return !!process.env.OPENAI_API_KEY;
 }
 
 const EMBEDDING_MODEL = process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small";
@@ -69,6 +79,10 @@ function containsNonEnglish(text: string): boolean {
 }
 
 export async function generateEmbedding(text: string): Promise<number[]> {
+  if (!isOpenAIEmbeddingsEnabled()) {
+    return generateLocalEmbedding(text);
+  }
+
   const client = getOpenAIClient();
   
   const response = await client.embeddings.create({
@@ -149,9 +163,9 @@ export async function generateAllEmbeddings(
       onProgress(i + 1, total, success, failed);
     }
     
-    // Rate limit: wait 1000ms between requests to avoid hitting API limits
-    // (GitHub Models API and other providers have stricter rate limits)
-    if (i < prompts.length - 1) {
+    // Rate limit: wait 1000ms between requests to avoid hitting API limits.
+    // The built-in model has no rate limit.
+    if (isOpenAIEmbeddingsEnabled() && i < prompts.length - 1) {
       await delay(1000);
     }
   }
@@ -216,9 +230,10 @@ export async function semanticSearch(
     throw new Error("AI Search is not enabled");
   }
 
-  // Translate non-English queries to English for better semantic matching
+  // Translate non-English queries to English for better semantic matching.
+  // The built-in model is multilingual, so it needs no translation step.
   let searchQuery = query;
-  if (containsNonEnglish(query)) {
+  if (isOpenAIEmbeddingsEnabled() && containsNonEnglish(query)) {
     searchQuery = await translateQueryToEnglish(query);
   }
 
@@ -272,7 +287,10 @@ export async function semanticSearch(
   });
 
   // Calculate similarity scores and filter by threshold
-  const SIMILARITY_THRESHOLD = 0.4; // Filter out results below this similarity
+  // Filter out results below this similarity (the built-in model scores lower overall)
+  const SIMILARITY_THRESHOLD = isOpenAIEmbeddingsEnabled()
+    ? 0.4
+    : Number(process.env.LOCAL_SEARCH_THRESHOLD || 0.3);
   
   const scoredPrompts = prompts
     .map((prompt) => {
@@ -294,7 +312,8 @@ export async function semanticSearch(
 
 export async function isAISearchEnabled(): Promise<boolean> {
   const config = await getConfig();
-  return config.features.aiSearch === true && !!process.env.OPENAI_API_KEY;
+  // The built-in model needs no API key.
+  return config.features.aiSearch === true;
 }
 
 /**

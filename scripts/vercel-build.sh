@@ -16,6 +16,13 @@ if [ "${SEED_ON_BUILD:-}" = "true" ]; then
   npx tsx prisma/seed.ts
 fi
 
+# One-time AI search setup. Turn on with EMBED_ON_BUILD=true, redeploy once, then
+# turn off. Creates search fingerprints for prompts that don't have one yet.
+if [ "${EMBED_ON_BUILD:-}" = "true" ]; then
+  echo "EMBED_ON_BUILD=true: creating AI search fingerprints..."
+  npx tsx prisma/embed-all.ts
+fi
+
 # Give a GitHub user the admin role. Set ADMIN_USERNAME in Vercel.
 if [ -n "${ADMIN_USERNAME:-}" ]; then
   npx tsx prisma/promote-admin.ts

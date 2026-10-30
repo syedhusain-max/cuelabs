@@ -52,8 +52,8 @@ export default defineConfig({
     categories: true,
     // Enable tags
     tags: true,
-    // Enable AI-powered semantic search (requires OPENAI_API_KEY)
-    aiSearch: false,
+    // Enable AI-powered semantic search (free built-in model; uses OpenAI if OPENAI_API_KEY is set)
+    aiSearch: true,
     // Enable AI-powered generation features (requires OPENAI_API_KEY)
     aiGeneration: false,
     // Enable MCP (Model Context Protocol) features including API key generation
